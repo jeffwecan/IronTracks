@@ -34,7 +34,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Prod|AnyCPU'">
-    <OutputPath>E:\PTCGL\Pokemon Trading Card Game Live\Mods\</OutputPath>
+    <OutputPath>$(PTCGL_PATH)\Mods\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
   </PropertyGroup>
@@ -91,6 +91,18 @@
     <Reference Include="UnityEngine.InputLegacyModule">
       <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\UnityEngine.UnityWebRequestModule.dll</HintPath>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\System.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <!-- <Reference Include="Microsoft.CSharp.dll">
+      <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\Microsoft.CSharp.dll</HintPath>
+    </Reference> -->
 
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

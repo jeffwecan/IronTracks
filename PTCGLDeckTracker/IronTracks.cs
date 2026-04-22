@@ -13,17 +13,24 @@ using TPCI.Rainier.Match.Cards.Ownership;
 using PTCGLDeckTracker.CardCollection;
 using TPCI.Rainier.Match.Cards;
 using CardDatabase.DataAccess;
+using UnityEngine.Networking;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+// using System.Runtime.Serialization.Json;
+using CardDatabase.DataAccess.CardFormat;
+using _Rainier.Scripts.BattleLog;
+using System.IO;
 
 namespace PTCGLDeckTracker
 {
     public class IronTracks : MelonMod
     {
         // General UI Constants
-        private const float DefaultWindowWidth = 250f;
-        private const float LineHeight = 20f;
+        private const float DefaultWindowWidth = 400f;
+        private const float LineHeight = 26f;
         private const float WindowHeaderHeight = 25f;
         private const float WindowVerticalPadding = 60f;
-        private const int FontSize = 15;
+        private const int FontSize = 25;
         private const int TextPadding = 5;
         private const float HorizontalMargin = 5f;
         private const float TotalHorizontalMargin = HorizontalMargin * 2;
@@ -80,6 +87,34 @@ namespace PTCGLDeckTracker
         private bool _showControlPanel = false;
         private Rect _controlPanelRect = new Rect(Screen.width / 2 - (ControlPanelWidth / 2), Screen.height / 2 - (ControlPanelHeight / 2), ControlPanelWidth, ControlPanelHeight);
 
+        private static MelonPreferences_Category trainingCourtPrefs;
+        private static MelonPreferences_Entry<bool> trainingCourtAutoUploads;
+        private static MelonPreferences_Entry<string> trainingCourtEmail;
+        private static MelonPreferences_Entry<string> trainingCourtPassword;
+        private static MelonPreferences_Entry<string> trainingCourtApiKey;
+        private static MelonPreferences_Entry<string> trainingCourtCurrentFormat;
+        private static MelonPreferences_Entry<string> trainingCourtnextAction;
+
+        public override void OnInitializeMelon()
+        {
+
+            // Some code here
+
+            trainingCourtPrefs = MelonPreferences.CreateCategory("TrainingCourtPreferences");
+            // MelonPreferences_Category trainingCourtPrefs;
+            trainingCourtAutoUploads = trainingCourtPrefs.CreateEntry<bool>("autoUploads", false);
+            trainingCourtEmail = trainingCourtPrefs.CreateEntry<string>("email", "");
+            trainingCourtPassword = trainingCourtPrefs.CreateEntry<string>("password", "");
+            trainingCourtApiKey = trainingCourtPrefs.CreateEntry<string>("apiKey", "");
+            trainingCourtCurrentFormat = trainingCourtPrefs.CreateEntry<string>("currentFormat", "");
+            trainingCourtnextAction = trainingCourtPrefs.CreateEntry<string>("nextAction", "");
+            trainingCourtPrefs.SetFilePath("training_court.cfg");
+            Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: trainingCourtPrefs.autoUploads: " + trainingCourtAutoUploads.Value);
+            Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: trainingCourtPrefs.email: " + trainingCourtEmail.Value);
+
+
+            // trainingCourtPrefs.SaveToFile();
+        }
         public override void OnUpdate()
         {
             HandleCardTooltip();
@@ -152,6 +187,8 @@ namespace PTCGLDeckTracker
 
             var totalAssumedCards = player.deck.GetAssumedTotalQuantityOfCards();
             var totalActualCards = player.deck.GetTotalQuantityOfCards();
+            var totalHandCards = player.hand.GetTotalQuantityOfCards();
+            var alaDamage = totalHandCards * 20;
             var isUncertain = totalAssumedCards != totalActualCards;
 
             var yOffset = WindowHeaderHeight;
@@ -210,7 +247,9 @@ namespace PTCGLDeckTracker
             yOffset += LineHeight;
             GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Total Cards in Deck: " + totalActualCards, counterGUIStyle);
             yOffset += LineHeight;
-            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Total ASSUMED Cards in Deck: " + totalAssumedCards, counterGUIStyle);
+            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Assumed Cards in Deck: " + totalAssumedCards, counterGUIStyle);
+            yOffset += LineHeight;
+            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Cards in Hand: " + totalHandCards + " ( x20 => " + alaDamage + " )", counterGUIStyle);
         }
 
         void DrawPrizeTitleWindow(int windowID)
@@ -431,10 +470,11 @@ namespace PTCGLDeckTracker
         }
 
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "SendMatchStartTelemetry")]
-        class Patch
+        class SendMatchStartTelemetryPatch
         {
-            static void Prefix(MatchManager __instance, NetworkMatchController.MatchDetails game)
+            static void Prefix(MatchManager __instance, BattleLog ____battleLog, NetworkMatchController.MatchDetails game)
             {
+
                 var assumedLocalPlayer = game.players[0];
                 var playerName = assumedLocalPlayer.playerName;
 
@@ -458,8 +498,107 @@ namespace PTCGLDeckTracker
                 Melon<IronTracks>.Logger.Msg(playerOneName + " vs. " + playerTwoName);
 
                 player.deck.PopulateDeck(assumedLocalPlayer.deckInfo.cards);
+                player.hand.Clear();
+
+                // Melon<IronTracks>.Logger.Msg("SendMatchStartTelemetryPatch():: calling DoBattleLogUpload...");
+                // DoBattleLogUpload(____battleLog);
             }
         }
+        public class TrainingCourtPayload
+        {
+            // Non-static field.
+            public string user;
+            public string archetype;
+            public string opp_archetype;
+            public string log;
+            public string turn_order;
+            public string result;
+            public string format;
+            // Non-static method.
+        }
+        public static void DoBattleLogUpload(BattleLog battleLog)
+        {
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: logging into trainingcourt...");
+            var battleLogMenuExporter = new BattleLogExporter();
+
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: calling ExportBattleLog...");
+            battleLogMenuExporter.ExportBattleLog(battleLog);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + GUIUtility.systemCopyBuffer);
+
+
+            if (!trainingCourtAutoUploads.Value)
+            {
+                return;
+            }
+
+            string trainingCourtJwt;
+
+            var formData = new List<IMultipartFormSection>();
+            formData.Add(new MultipartFormDataSection("1_email", trainingCourtEmail.Value));
+            formData.Add(new MultipartFormDataSection("1_password", trainingCourtPassword.Value));
+            formData.Add(new MultipartFormDataSection("0", "[\"$K1\"]"));
+
+            var loginRequest = UnityWebRequest.Post("https://www.trainingcourt.app/login", formData);
+            loginRequest.redirectLimit = 0;
+            loginRequest.SetRequestHeader("next-action", trainingCourtnextAction.Value);
+            loginRequest.SendWebRequest();
+            while (!loginRequest.isDone) { }
+
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => Error While Sending?: " + loginRequest.error);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => result: " + loginRequest.result);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
+
+            var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
+            trainingCourtJwt = tokenHeaderValue.Replace("sb-yuruvpbgsukqiaeduaay-auth-token=base64-", "");
+            trainingCourtJwt = trainingCourtJwt.Split(';')[0];
+            var jwtBytes = Convert.FromBase64String(trainingCourtJwt);
+            trainingCourtJwt = Encoding.UTF8.GetString(jwtBytes);
+
+            var parsedBase64Token = JObject.Parse(trainingCourtJwt);
+
+            string accessToken = (string)parsedBase64Token["access_token"];
+
+
+            var jsonStringBuilder = new StringWriter();
+            var serializer = new JsonSerializer();
+            var payload = new TrainingCourtPayload();
+            // payload.user = "dc480a16-1762-4c39-aba7-9f659f6dde76"; // -> json['user']['id']
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.user => " + (string)parsedBase64Token["user"]["id"]);
+            payload.user = (string)parsedBase64Token["user"]["id"];
+            payload.log = GUIUtility.systemCopyBuffer;
+            payload.format = trainingCourtCurrentFormat.Value;
+            serializer.Serialize(jsonStringBuilder, payload);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + jsonStringBuilder.ToString());
+
+            var url = "https://yuruvpbgsukqiaeduaay.supabase.co/rest/v1/logs?select=*";
+            var uploadRequest = UnityWebRequest.Post(url, jsonStringBuilder.ToString(), "application/json");
+            uploadRequest.SetRequestHeader("apikey", trainingCourtApiKey.Value);
+            uploadRequest.SetRequestHeader("authorization", "Bearer " + accessToken);
+
+            //Send the request then wait here until it returns
+            uploadRequest.SendWebRequest();
+            while (!uploadRequest.isDone) { }
+
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + uploadRequest.error);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  result: " + uploadRequest.result);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  responseCode: " + uploadRequest.responseCode);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  text: " + uploadRequest.downloadHandler.text);
+
+            return;
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(MatchManager), "LoadEndBattleScreen")]
+        class EndGameHandlerPatch
+        {
+            static void Prefix(MatchManager __instance, BattleLog ____battleLog)
+            {
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + ____battleLog);
+                DoBattleLogUpload(____battleLog);
+            }
+        }
+
+
 
         [HarmonyLib.HarmonyPatch(typeof(PlayerCardOwner), "ProcessCardGainedResult")]
         class ProcessCardGainedPatch
@@ -470,7 +609,7 @@ namespace PTCGLDeckTracker
                 {
                     return;
                 }
-                // Make sure that we are targetting the local player (ourself)
+                // Make sure that we are targeting the local player (ourself)
                 if (__instance.playerID != PlayerID.LOCAL)
                 {
                     return;
@@ -489,6 +628,7 @@ namespace PTCGLDeckTracker
                     return;
                 }
                 // Make sure that we are targetting the local player (ourself)
+                // Melon<IronTracks>.Logger.Msg("ProcessCardRemovalResult():: " + __instance.playerID + " vs. " + PlayerID.LOCAL);
                 if (__instance.playerID != PlayerID.LOCAL)
                 {
                     return;
@@ -496,6 +636,71 @@ namespace PTCGLDeckTracker
                 player.OnRemovedCardFromCollection(data.card, __instance);
             }
         }
-    }
 
+        // [HarmonyLib.HarmonyPatch(typeof(BaseCardOwner), "OnGainOwnershipSettled")]
+        // class OnGainOwnershipSettledPatch
+        // {
+        //     static void Postfix(Card3D card, PlayerID pID)
+        //     {
+
+        //         Melon<IronTracks>.Logger.Msg("OnGainOwnershipSettled():: " + card.name + " w/ " + pID + " vs. " + PlayerID.LOCAL);
+        //     }
+        // }
+
+
+        [HarmonyLib.HarmonyPatch(typeof(MatchStateChangeEventHandler), "HandleMatchStateChanged")]
+        class HandleMatchStateChangedPatch
+        {
+            static void Postfix(MatchManager.MatchState newState)
+            {
+                // Tracks changes between turns / checkup / turn /etc
+                Melon<IronTracks>.Logger.Msg("HandleMatchStateChanged():: " + newState);
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(MulliganController), "Reset")]
+        class MulliganControllerResetPatch
+        {
+            static void Postfix()
+            {
+                Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called");
+                // Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called => clearing hand");
+                // // ProcessCardRemovalResult isn't called following a mulligan, so we clear
+                // // our hand here instead.
+                // player.hand.Clear();
+            }
+        }
+
+
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "ProcessCardGainedResult")]
+        class HandOnCardAddedPatch
+        {
+            static void Postfix(OwnerData data, bool gainedFromDrop)
+            {
+
+                if (data.card.playerID != PlayerID.LOCAL)
+                {
+                    return;
+                }
+                Melon<IronTracks>.Logger.Msg("HandOnCardAddedPatch() called => " + data.card.name + " (" + gainedFromDrop + ")");
+                player.hand.OnCardAdded(data.card);
+            }
+        }
+
+
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "ProcessCardRemovalResult")]
+        class HandOnCardRemovedPatch
+        {
+            static void Postfix(OwnerData data, bool droppingCard)
+            {
+
+                if (data.card.playerID != PlayerID.LOCAL)
+                {
+                    return;
+                }
+                Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called => " + data.card.name + " (" + droppingCard + ")");
+                player.hand.OnCardRemoved(data.card);
+            }
+        }
+    }
 }

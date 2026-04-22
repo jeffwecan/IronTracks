@@ -35,10 +35,10 @@ namespace PTCGLDeckTracker
             {
                 deck.OnCardAdded(cardAdded);
             }
-            else if (playerCardOwner.GetType() == typeof(HandFanController))
-            {
-                hand.OnCardAdded(cardAdded);
-            }
+            // else if (playerCardOwner.GetType() == typeof(HandFanController))
+            // {
+            //     hand.OnCardAdded(cardAdded);
+            // }
             else if (playerCardOwner.GetType() == typeof(PrizeController))
             {
                 deck.prizeCards.OnCardAdded(cardAdded);
@@ -47,14 +47,15 @@ namespace PTCGLDeckTracker
 
         public void OnRemovedCardFromCollection(Card3D cardRemoved, PlayerCardOwner playerCardOwner)
         {
+                // Melon<IronTracks>.Logger.Msg("OnRemovedCardFromCollection():: " + playerCardOwner.GetType());
             if (playerCardOwner.GetType() == typeof(DeckController))
             {
                 deck.OnCardRemoved(cardRemoved);
             }
-            else if (playerCardOwner.GetType() == typeof(HandFanController))
-            {
-                hand.OnCardRemoved(cardRemoved);
-            }
+            // else if (playerCardOwner.GetType() == typeof(HandFanController))
+            // {
+            //     hand.OnCardRemoved(cardRemoved);
+            // }
             else if (playerCardOwner.GetType() == typeof(PrizeController))
             {
                 deck.prizeCards.OnCardRemoved(cardRemoved);

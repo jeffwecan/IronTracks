@@ -1,0 +1,17 @@
+
+
+build-and-run:
+  dotnet build -c Release
+  cp --interactive \
+    bin/Release\PTCGLDeckTracker.dll \
+    C:\games\PTCGL\Mods\PTCGLDeckTracker.dll
+  cmd /K "C:\games\PTCGL\Pokemon TCG Live.exe" --melonloader.debug --melonloader.consoleontop
+
+test-curl:
+  curl 'https://www.trainingcourt.app/login' \
+    -v -o /dev/null \
+    -H 'accept: text/x-component' \
+    -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundaryAGyjG8tx17jp3Bvz' \
+    -H 'next-action: cdcbd521afeedc9cc199bec951272160177b15c1' \
+    -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36' \
+    --data-raw $'------WebKitFormBoundaryAGyjG8tx17jp3Bvz\r\nContent-Disposition: form-data; name="1_email"\r\n\r\njeff.hogan1@gmail.com\r\n------WebKitFormBoundaryAGyjG8tx17jp3Bvz\r\nContent-Disposition: form-data; name="1_password"\r\n\r\nLK8b4gEV_4wJ43k6\r\n------WebKitFormBoundaryAGyjG8tx17jp3Bvz\r\nContent-Disposition: form-data; name="0"\r\n\r\n["$K1"]\r\n------WebKitFormBoundaryAGyjG8tx17jp3Bvz--\r\n'
