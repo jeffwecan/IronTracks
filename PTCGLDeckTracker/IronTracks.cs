@@ -548,6 +548,9 @@ namespace PTCGLDeckTracker
             // Non-static method.
         }
 
+        // TODO: store these in melon prefs instead?
+        static string accessToken = "";
+        static string refreshToken = "";
 
         public static IEnumerator DoBattleLogUpload(BattleLog battleLog)
         {
@@ -565,6 +568,7 @@ namespace PTCGLDeckTracker
 
             string trainingCourtJwt;
 
+            // TODO: skip login if we already have a stashed token / refresh token that are valid
             var formData = new List<IMultipartFormSection>();
             formData.Add(new MultipartFormDataSection("1_email", trainingCourtEmail.Value));
             formData.Add(new MultipartFormDataSection("1_password", trainingCourtPassword.Value));
@@ -587,7 +591,8 @@ namespace PTCGLDeckTracker
 
             var parsedBase64Token = JObject.Parse(trainingCourtJwt);
 
-            string accessToken = (string)parsedBase64Token["access_token"];
+            accessToken = (string)parsedBase64Token["access_token"];
+            refreshToken = (string)parsedBase64Token["refresh_token"];
 
             var jsonStringBuilder = new StringWriter();
             var serializer = new JsonSerializer();
