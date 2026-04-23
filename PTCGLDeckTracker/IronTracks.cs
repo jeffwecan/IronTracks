@@ -518,7 +518,6 @@ namespace PTCGLDeckTracker
         }
         public static void DoBattleLogUpload(BattleLog battleLog)
         {
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: logging into trainingcourt...");
             var battleLogMenuExporter = new BattleLogExporter();
 
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: calling ExportBattleLog...");
@@ -666,13 +665,13 @@ namespace PTCGLDeckTracker
             static void Postfix(int ___currentMode)
             {
                 Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called:: ___currentMode => " + ___currentMode);
-                if (___currentMode == 1)
-                {
-                    Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called => currentMode: " + ___currentMode + " ==> clearing hand");
-                    // ProcessCardRemovalResult isn't called following a mulligan, so we clear
-                    // our hand here instead.
-                    player.hand.Clear();
-                }
+                // if (___currentMode == 1)
+                // {
+                //     Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called => currentMode: " + ___currentMode + " ==> clearing hand");
+                //     // ProcessCardRemovalResult isn't called following a mulligan, so we clear
+                //     // our hand here instead.
+                //     player.hand.Clear();
+                // }
             }
         }
 
@@ -680,16 +679,21 @@ namespace PTCGLDeckTracker
         [HarmonyLib.HarmonyPatch(typeof(HandController), "AddGainedCardToLocalRegistry")]
         class HandOnCardAddedPatch
         {
-            static void Prefix(List<Card3D> ___ownedCards, OwnerData data, bool gainedFromDrop)
+            static void Postfix(List<Card3D> ___ownedCards, OwnerData data, bool gainedFromDrop)
             {
                 if (data.card.playerID != PlayerID.LOCAL)
                 {
                     return;
                 }
-                var officialCardsInHand = ___ownedCards.Count;
-                Melon<IronTracks>.Logger.Msg("HandOnCardAddedPatch() called => " + data.card.name + " (" + gainedFromDrop + ") ====> officialCardsInHand: " + officialCardsInHand);
+                Melon<IronTracks>.Logger.Msg("HandOnCardAddedPatch() called => " + data.card.name + " (" + gainedFromDrop + ")");
 
-                player.hand.OnCardAdded(data.card);
+
+                player.hand.Clear();
+
+                foreach (var ownedCard in ___ownedCards)
+                {
+                    player.hand.OnCardAdded(ownedCard);
+                }
             }
         }
 
@@ -707,43 +711,20 @@ namespace PTCGLDeckTracker
         [HarmonyLib.HarmonyPatch(typeof(HandController), "RemoveCardFromLocalRegistry")]
         class HandOnCardRemovedPatch
         {
-            static void Prefix(List<Card3D> ___ownedCards, OwnerData data)
+            static void Postfix(List<Card3D> ___ownedCards, OwnerData data)
             {
                 // ownedCards.Remove(data.card); in the associated class method may be called more
-                // than once for the same card 
-                if (data.card.playerID == PlayerID.LOCAL)
+                // than once for the same card
+                if (data.card.playerID != PlayerID.LOCAL)
                 {
-                // Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called " + data.card.name + " (" + droppingCard + ")");
-                var officialCardsInHand = ___ownedCards.Count;
-                // Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called " + data.card.name + " (" + droppingCard + ") ====> officialCardsInHand: " + officialCardsInHand);
+                    return;
+                }
+                Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called => " + data.card.name);
+                player.hand.Clear();
 
-                    bool flag = true;
-                    // bool flag = false;
-                    // if (data.card.isPokemon)
-                    // {
-                    //     flag = data.playerPos == PlayerPos.ACTIVE || data.playerPos == PlayerPos.BENCH || data.playerPos == PlayerPos.NONE;
-
-                    //     Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() flag after pokemon: " + flag + "(data.playerPos: " + data.playerPos + ")");
-                    // }
-
-                    // if (data.card.isTrainer)
-                    // {
-                    //     flag = data.playerPos == PlayerPos.PENDING || data.playerPos == PlayerPos.STADIUM;
-
-                    //     Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() flag after isTrainer: " + flag);
-                    // }
-
-                    // if (data.card.isTool || data.card.isEnergy)
-                    // {
-                    //     flag = true;
-
-                    //     Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() flag after tool/energy: " + flag);
-                    // }
-                    if (flag)
-                    {
-                        Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() removing card => " + data.card.name);
-                        player.hand.OnCardRemoved(data.card);
-                    }
+                foreach (var ownedCard in ___ownedCards)
+                {
+                    player.hand.OnCardAdded(ownedCard);
                 }
             }
         }
