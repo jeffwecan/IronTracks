@@ -20,9 +20,36 @@ using Newtonsoft.Json.Linq;
 using CardDatabase.DataAccess.CardFormat;
 using _Rainier.Scripts.BattleLog;
 using System.IO;
+using System.Collections;
 
 namespace PTCGLDeckTracker
 {
+
+
+    public static class StaticCoroutine
+    {
+        private class CoroutineHolder : MonoBehaviour { }
+
+        //lazy singleton pattern. Note that I don't set it to dontdestroyonload - you usually want corotuines to stop when you load a new scene.
+        private static CoroutineHolder _runner;
+        private static CoroutineHolder runner
+        {
+            get
+            {
+                if (_runner == null)
+                {
+                    _runner = new GameObject("Static Corotuine Runner").AddComponent<CoroutineHolder>();
+                }
+                return _runner;
+            }
+        }
+
+        public static void StartCoroutine(IEnumerator corotuine)
+        {
+            runner.StartCoroutine(corotuine);
+        }
+    }
+
     public class IronTracks : MelonMod
     {
         // General UI Constants
@@ -94,6 +121,8 @@ namespace PTCGLDeckTracker
         private static MelonPreferences_Entry<string> trainingCourtApiKey;
         private static MelonPreferences_Entry<string> trainingCourtCurrentFormat;
         private static MelonPreferences_Entry<string> trainingCourtnextAction;
+
+        static string deckName = "";
 
         public override void OnInitializeMelon()
         {
@@ -500,6 +529,8 @@ namespace PTCGLDeckTracker
                 player.deck.PopulateDeck(assumedLocalPlayer.deckInfo.cards);
                 player.hand.Clear();
 
+                deckName = assumedLocalPlayer.deckInfo.deckName;
+
                 // Melon<IronTracks>.Logger.Msg("SendMatchStartTelemetryPatch():: calling DoBattleLogUpload...");
                 // DoBattleLogUpload(____battleLog);
             }
@@ -516,7 +547,9 @@ namespace PTCGLDeckTracker
             public string format;
             // Non-static method.
         }
-        public static void DoBattleLogUpload(BattleLog battleLog)
+
+
+        public static IEnumerator DoBattleLogUpload(BattleLog battleLog)
         {
             var battleLogMenuExporter = new BattleLogExporter();
 
@@ -527,7 +560,7 @@ namespace PTCGLDeckTracker
 
             if (!trainingCourtAutoUploads.Value)
             {
-                return;
+                yield break;
             }
 
             string trainingCourtJwt;
@@ -540,15 +573,13 @@ namespace PTCGLDeckTracker
             var loginRequest = UnityWebRequest.Post("https://www.trainingcourt.app/login", formData);
             loginRequest.redirectLimit = 0;
             loginRequest.SetRequestHeader("next-action", trainingCourtnextAction.Value);
-            loginRequest.SendWebRequest();
-            while (!loginRequest.isDone) { }
+            yield return loginRequest.SendWebRequest();
 
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => Error While Sending?: " + loginRequest.error);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => result: " + loginRequest.result);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
 
             var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => tokenHeaderValue: " + tokenHeaderValue);
             trainingCourtJwt = tokenHeaderValue.Replace("sb-yuruvpbgsukqiaeduaay-auth-token=base64-", "");
             trainingCourtJwt = trainingCourtJwt.Split(';')[0];
             var jwtBytes = Convert.FromBase64String(trainingCourtJwt);
@@ -558,16 +589,17 @@ namespace PTCGLDeckTracker
 
             string accessToken = (string)parsedBase64Token["access_token"];
 
-
             var jsonStringBuilder = new StringWriter();
             var serializer = new JsonSerializer();
             var payload = new TrainingCourtPayload();
-            // payload.user = "dc480a16-1762-4c39-aba7-9f659f6dde76"; // -> json['user']['id']
+
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.user => " + (string)parsedBase64Token["user"]["id"]);
             payload.user = (string)parsedBase64Token["user"]["id"];
             payload.log = GUIUtility.systemCopyBuffer;
             payload.format = trainingCourtCurrentFormat.Value;
-            // payload.archetype = "get-from-deck-name-question-mark";
+            var archetype = deckName.Split('_')[0];
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.archetype => " + archetype);
+            payload.archetype = archetype;
             serializer.Serialize(jsonStringBuilder, payload);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + jsonStringBuilder.ToString());
 
@@ -577,16 +609,15 @@ namespace PTCGLDeckTracker
             uploadRequest.SetRequestHeader("authorization", "Bearer " + accessToken);
 
             //Send the request then wait here until it returns
-            uploadRequest.SendWebRequest();
-            while (!uploadRequest.isDone) { }
+            yield return uploadRequest.SendWebRequest();
+            // while (!uploadRequest.isDone) { }
 
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + uploadRequest.error);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  result: " + uploadRequest.result);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  responseCode: " + uploadRequest.responseCode);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  text: " + uploadRequest.downloadHandler.text);
-
-            return;
         }
+
 
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "LoadEndBattleScreen")]
         class EndGameHandlerPatch
@@ -594,8 +625,12 @@ namespace PTCGLDeckTracker
             static void Prefix(MatchManager __instance, BattleLog ____battleLog)
             {
                 Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance);
-                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + ____battleLog);
-                DoBattleLogUpload(____battleLog);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: ____battleLog count:" + ____battleLog.ToList().Count);
+                // StaticCoroutine.StartCorotuine(IronTracks.DoBattleLogUpload(____battleLog));
+                StaticCoroutine.StartCoroutine(IronTracks.DoBattleLogUpload(____battleLog));
+                // battleLogUploader.StartCoroutine()
+                // battleLogUploader.enabled = true;
+                // (DoBattleLogUpload(____battleLog));
             }
         }
 
@@ -629,7 +664,6 @@ namespace PTCGLDeckTracker
                     return;
                 }
                 // Make sure that we are targetting the local player (ourself)
-                // Melon<IronTracks>.Logger.Msg("ProcessCardRemovalResult():: " + __instance.playerID + " vs. " + PlayerID.LOCAL);
                 if (__instance.playerID != PlayerID.LOCAL)
                 {
                     return;
@@ -637,17 +671,6 @@ namespace PTCGLDeckTracker
                 player.OnRemovedCardFromCollection(data.card, __instance);
             }
         }
-
-        // [HarmonyLib.HarmonyPatch(typeof(BaseCardOwner), "OnGainOwnershipSettled")]
-        // class OnGainOwnershipSettledPatch
-        // {
-        //     static void Postfix(Card3D card, PlayerID pID)
-        //     {
-
-        //         Melon<IronTracks>.Logger.Msg("OnGainOwnershipSettled():: " + card.name + " w/ " + pID + " vs. " + PlayerID.LOCAL);
-        //     }
-        // }
-
 
         [HarmonyLib.HarmonyPatch(typeof(MatchStateChangeEventHandler), "HandleMatchStateChanged")]
         class HandleMatchStateChangedPatch
@@ -665,16 +688,8 @@ namespace PTCGLDeckTracker
             static void Postfix(int ___currentMode)
             {
                 Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called:: ___currentMode => " + ___currentMode);
-                // if (___currentMode == 1)
-                // {
-                //     Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called => currentMode: " + ___currentMode + " ==> clearing hand");
-                //     // ProcessCardRemovalResult isn't called following a mulligan, so we clear
-                //     // our hand here instead.
-                //     player.hand.Clear();
-                // }
             }
         }
-
 
         [HarmonyLib.HarmonyPatch(typeof(HandController), "AddGainedCardToLocalRegistry")]
         class HandOnCardAddedPatch
@@ -696,17 +711,6 @@ namespace PTCGLDeckTracker
                 }
             }
         }
-
-
-        // [HarmonyLib.HarmonyPatch(typeof(HandController), "RemoveCardFromLocalRegistry")]
-        // class HandOnCardRemovedPatchDeux
-        // {
-        //     static void Postfix(OwnerData data)
-        //     {
-        //         Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatchDeux()::" + data.card.playerID + " - " + PlayerID.LOCAL + " - " + data.card.name);
-        //     }
-        // }
-
 
         [HarmonyLib.HarmonyPatch(typeof(HandController), "RemoveCardFromLocalRegistry")]
         class HandOnCardRemovedPatch
