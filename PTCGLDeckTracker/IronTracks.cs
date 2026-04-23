@@ -673,40 +673,34 @@ namespace PTCGLDeckTracker
         }
 
 
-        [HarmonyLib.HarmonyPatch(typeof(HandController), "AddCard")]
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "ProcessCardGainedResult")]
         class HandOnCardAddedPatch
         {
-            static void Postfix(Card3D card)
+            static void Postfix(OwnerData data, bool gainedFromDrop)
             {
 
-                if (card.playerID != PlayerID.LOCAL)
+                if (data.card.playerID != PlayerID.LOCAL)
                 {
                     return;
                 }
-                Melon<IronTracks>.Logger.Msg("HandOnCardAddedPatch() called => " + card.name);
-                // if (gainedFromDrop)
-                // {
-                    player.hand.OnCardAdded(data.card);
-                // }
+                Melon<IronTracks>.Logger.Msg("HandOnCardAddedPatch() called => " + data.card.name + " (" + gainedFromDrop + ")");
+                player.hand.OnCardAdded(data.card);
             }
         }
 
 
-        [HarmonyLib.HarmonyPatch(typeof(HandController), "RemoveCard")]
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "ProcessCardRemovalResult")]
         class HandOnCardRemovedPatch
         {
-            static void Postfix(Card3D card)
+            static void Postfix(OwnerData data, bool droppingCard)
             {
 
-                if (card.playerID != PlayerID.LOCAL)
+                if (data.card.playerID != PlayerID.LOCAL)
                 {
                     return;
                 }
-                Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called => " + card.name);
-                // if (droppingCard)
-                // {
-                    player.hand.OnCardRemoved(card);
-                // }
+                Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called => " + data.card.name + " (" + droppingCard + ")");
+                player.hand.OnCardRemoved(data.card);
             }
         }
     }
