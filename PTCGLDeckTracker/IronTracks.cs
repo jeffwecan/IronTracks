@@ -549,6 +549,7 @@ namespace PTCGLDeckTracker
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
 
             var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => tokenHeaderValue: " + tokenHeaderValue);
             trainingCourtJwt = tokenHeaderValue.Replace("sb-yuruvpbgsukqiaeduaay-auth-token=base64-", "");
             trainingCourtJwt = trainingCourtJwt.Split(';')[0];
             var jwtBytes = Convert.FromBase64String(trainingCourtJwt);
