@@ -572,11 +572,11 @@ namespace PTCGLDeckTracker
 
             var loginRequest = UnityWebRequest.Post("https://www.trainingcourt.app/login", formData);
             loginRequest.redirectLimit = 0;
+            loginRequest.timeout = 15;
             loginRequest.SetRequestHeader("next-action", trainingCourtnextAction.Value);
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => sending web request now...");
             yield return loginRequest.SendWebRequest();
 
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => Error While Sending?: " + loginRequest.error);
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => result: " + loginRequest.result);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
 
             var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
@@ -605,17 +605,24 @@ namespace PTCGLDeckTracker
 
             var url = "https://yuruvpbgsukqiaeduaay.supabase.co/rest/v1/logs?select=*";
             var uploadRequest = UnityWebRequest.Post(url, jsonStringBuilder.ToString(), "application/json");
+            uploadRequest.timeout = 15;
             uploadRequest.SetRequestHeader("apikey", trainingCourtApiKey.Value);
             uploadRequest.SetRequestHeader("authorization", "Bearer " + accessToken);
 
-            //Send the request then wait here until it returns
+            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => sending web request now...");
             yield return uploadRequest.SendWebRequest();
-            // while (!uploadRequest.isDone) { }
 
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + uploadRequest.error);
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  result: " + uploadRequest.result);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  responseCode: " + uploadRequest.responseCode);
             Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  text: " + uploadRequest.downloadHandler.text);
+            if (uploadRequest.result != UnityWebRequest.Result.Success)
+            {
+                Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + uploadRequest.error);
+                Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  result: " + uploadRequest.result);
+            }
+            else
+            {
+                Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  upload completed without error! :D");
+            }
         }
 
 
