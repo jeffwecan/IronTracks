@@ -71,9 +71,10 @@ namespace PTCGLDeckTracker.CardCollection
         {
             Clear();
 
-            var pokemons = new List<string>();
-            var trainers = new List<string>();
-            var energies = new List<string>();
+            // var pokemons = new List<string>();
+            var pokemons = new List<Dictionary<string, string>>();
+            var trainers = new List<Dictionary<string, string>>();
+            var energies = new List<Dictionary<string, string>>();
 
             foreach (var pair in deck)
             {
@@ -92,29 +93,44 @@ namespace PTCGLDeckTracker.CardCollection
 
                 if (cdr.IsPokemonCard())
                 {
-                    pokemons.Add(cardID);
+                    var pokemonEntry = new Dictionary<string, string>
+                    {
+                        { "name", cdr.EnglishCardName },
+                        { "cardId", cardID }
+                    };
+                    pokemons.Add(pokemonEntry);
                 }
                 else if (cdr.IsTrainerCard())
                 {
-                    trainers.Add(cardID);
+                    var trainerEntry = new Dictionary<string, string>
+                    {
+                        { "name", cdr.EnglishCardName },
+                        { "cardId", cardID }
+                    };
+                    trainers.Add(trainerEntry);
                 }
                 else
                 {
-                    energies.Add(cardID);
+                    var energiesEntry = new Dictionary<string, string>
+                    {
+                        { "name", cdr.EnglishCardName },
+                        { "cardId", cardID }
+                    };
+                    energies.Add(energiesEntry);
                 }
             }
 
-            foreach (var item in pokemons)
+            foreach (var item in pokemons.OrderBy(p => p["name"]))
             {
-                deckRenderOrder.Add(item);
+                deckRenderOrder.Add(item["cardId"]);
             }
-            foreach (var item in trainers)
+            foreach (var item in trainers.OrderBy(t => t["name"]))
             {
-                deckRenderOrder.Add(item);
+                deckRenderOrder.Add(item["cardId"]);
             }
-            foreach (var item in energies)
+            foreach (var item in energies.OrderBy(t => t["name"]))
             {
-                deckRenderOrder.Add(item);
+                deckRenderOrder.Add(item["cardId"]);
             }
             _currentCardsInDeck = _cards.ToDictionary(entry => entry.Key, entry => new TrackedCard(entry.Value));
         }
