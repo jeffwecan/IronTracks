@@ -90,7 +90,7 @@ namespace PTCGLDeckTracker.CardCollection
                 var card = new Card(cardID);
                 card.quantity = quantity;
                 card.englishName = cdr.EnglishCardName;
-                card.setID = cdr.CardSetID;
+                card.setID = cdr.CardSet.SetCode;
 
                 _cards[cardID] = new TrackedCard(card);
                 _cardsWithId[cardID] = quantity;
