@@ -92,7 +92,7 @@ namespace PTCGLDeckTracker.TrainingCourt
       public string refresh_token;
     }
 
-    private void performTokenRefresh()
+    private bool performTokenRefresh()
     {
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: performTokenRefresh() called");
       var jsonStringBuilder = new StringWriter();
@@ -121,6 +121,7 @@ namespace PTCGLDeckTracker.TrainingCourt
       {
         Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + tokenRefreshRequest.error);
         Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  result: " + tokenRefreshRequest.result);
+        return false;
       }
       else
       {
@@ -130,6 +131,7 @@ namespace PTCGLDeckTracker.TrainingCourt
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + tokenRefreshRequest.responseCode);
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => tokenRefreshRequest.downloadHandler.text: " + tokenRefreshRequest.downloadHandler.text);
       parseJwtCookie(tokenRefreshRequest.downloadHandler.text);
+      return true;
     }
 
     private void performLogin()
@@ -195,7 +197,10 @@ namespace PTCGLDeckTracker.TrainingCourt
       }
       else if ((tokenExp.Value - DateTimeOffset.UtcNow.ToUnixTimeSeconds()) < 300)
       {
-        performTokenRefresh();
+        if (! performTokenRefresh() )
+        {
+          performLogin();
+        }
       }
 
       battleLogMenuExporter.ExportBattleLog(battleLog);
