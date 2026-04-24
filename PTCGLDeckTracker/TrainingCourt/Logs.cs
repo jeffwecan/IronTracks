@@ -139,7 +139,6 @@ namespace PTCGLDeckTracker.TrainingCourt
 
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: performLogin() called");
-      // TODO: skip login if we already have a stashed token / refresh token that are valid
       var formData = new List<IMultipartFormSection>();
       formData.Add(new MultipartFormDataSection("1_email", email.Value));
       formData.Add(new MultipartFormDataSection("1_password", password.Value));
@@ -192,8 +191,17 @@ namespace PTCGLDeckTracker.TrainingCourt
     public IEnumerator DoBattleLogUpload(BattleLog battleLog, string deckName)
     {
       var battleLogMenuExporter = new BattleLogExporter();
-
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: calling ExportBattleLog...");
+      battleLogMenuExporter.ExportBattleLog(battleLog);
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + GUIUtility.systemCopyBuffer);
+
+      var payload = new TrainingCourtPayload();
+      payload.log = GUIUtility.systemCopyBuffer;
+      payload.format = currentFormat.Value;
+      var archetype = deckName.Split('_')[0];
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.archetype => " + archetype);
+      payload.archetype = archetype;
+
 
       if (!autoUploads.Value)
       {
@@ -207,26 +215,22 @@ namespace PTCGLDeckTracker.TrainingCourt
       }
       else if ((tokenExp.Value - DateTimeOffset.UtcNow.ToUnixTimeSeconds()) < 300)
       {
-        if (! performTokenRefresh() )
+        if (!performTokenRefresh())
         {
           performLogin();
         }
       }
+      else
+      {
+        Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: assuming stashed access token is still valid...");
+      }
 
-      battleLogMenuExporter.ExportBattleLog(battleLog);
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + GUIUtility.systemCopyBuffer);
+      payload.user = userId.Value;
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.user => " + userId.Value);
 
       var jsonStringBuilder = new StringWriter();
       var serializer = new JsonSerializer();
-      var payload = new TrainingCourtPayload();
 
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.user => " + userId.Value);
-      payload.user = userId.Value;
-      payload.log = GUIUtility.systemCopyBuffer;
-      payload.format = currentFormat.Value;
-      var archetype = deckName.Split('_')[0];
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.archetype => " + archetype);
-      payload.archetype = archetype;
       serializer.Serialize(jsonStringBuilder, payload);
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + jsonStringBuilder.ToString());
 
