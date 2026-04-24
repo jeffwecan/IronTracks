@@ -150,6 +150,8 @@ namespace PTCGLDeckTracker
 
             var totalAssumedCards = player.deck.GetAssumedTotalQuantityOfCards();
             var totalActualCards = player.deck.GetTotalQuantityOfCards();
+            var totalHandCards = player.hand.GetTotalQuantityOfCards();
+            var alaDamage = totalHandCards * 20;
             var isUncertain = totalAssumedCards != totalActualCards;
 
             var yOffset = WindowHeaderHeight;
@@ -208,7 +210,9 @@ namespace PTCGLDeckTracker
             yOffset += LineHeight;
             GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Total Cards in Deck: " + totalActualCards, counterGUIStyle);
             yOffset += LineHeight;
-            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Total ASSUMED Cards in Deck: " + totalAssumedCards, counterGUIStyle);
+            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Assumed Cards in Deck: " + totalAssumedCards, counterGUIStyle);
+            yOffset += LineHeight;
+            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Cards in Hand: " + totalHandCards + " ( x20 => " + alaDamage + " )", counterGUIStyle);
         }
 
         void DrawPrizeTitleWindow(int windowID)
