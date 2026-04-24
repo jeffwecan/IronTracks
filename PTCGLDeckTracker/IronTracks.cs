@@ -495,5 +495,4 @@ namespace PTCGLDeckTracker
             }
         }
     }
-
 }
