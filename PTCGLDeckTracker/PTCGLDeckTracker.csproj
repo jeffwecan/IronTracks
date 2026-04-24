@@ -46,6 +46,7 @@
     <Compile Include="CardCollection\DiscardPile.cs" />
     <Compile Include="CardCollection\Hand.cs" />
     <Compile Include="CardCollection\PrizeCards.cs" />
+    <Compile Include="TrainingCourt\Logs.cs" />
     <Compile Include="IronTracks.cs" />
     <Compile Include="Player.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

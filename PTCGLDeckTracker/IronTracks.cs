@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using Harmony;
 using HarmonyLib;
@@ -11,44 +9,14 @@ using RainierClientSDK;
 using UnityEngine.SceneManagement;
 using TPCI.Rainier.Match.Cards.Ownership;
 using PTCGLDeckTracker.CardCollection;
+using PTCGLDeckTracker.TrainingCourt;
 using TPCI.Rainier.Match.Cards;
 using CardDatabase.DataAccess;
-using UnityEngine.Networking;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-// using System.Runtime.Serialization.Json;
 using CardDatabase.DataAccess.CardFormat;
 using _Rainier.Scripts.BattleLog;
-using System.IO;
-using System.Collections;
 
 namespace PTCGLDeckTracker
 {
-
-
-    public static class StaticCoroutine
-    {
-        private class CoroutineHolder : MonoBehaviour { }
-
-        //lazy singleton pattern. Note that I don't set it to dontdestroyonload - you usually want corotuines to stop when you load a new scene.
-        private static CoroutineHolder _runner;
-        private static CoroutineHolder runner
-        {
-            get
-            {
-                if (_runner == null)
-                {
-                    _runner = new GameObject("Static Corotuine Runner").AddComponent<CoroutineHolder>();
-                }
-                return _runner;
-            }
-        }
-
-        public static void StartCoroutine(IEnumerator corotuine)
-        {
-            runner.StartCoroutine(corotuine);
-        }
-    }
 
     public class IronTracks : MelonMod
     {
@@ -114,35 +82,12 @@ namespace PTCGLDeckTracker
         private bool _showControlPanel = false;
         private Rect _controlPanelRect = new Rect(Screen.width / 2 - (ControlPanelWidth / 2), Screen.height / 2 - (ControlPanelHeight / 2), ControlPanelWidth, ControlPanelHeight);
 
-        private static MelonPreferences_Category trainingCourtPrefs;
-        private static MelonPreferences_Entry<bool> trainingCourtAutoUploads;
-        private static MelonPreferences_Entry<string> trainingCourtEmail;
-        private static MelonPreferences_Entry<string> trainingCourtPassword;
-        private static MelonPreferences_Entry<string> trainingCourtApiKey;
-        private static MelonPreferences_Entry<string> trainingCourtCurrentFormat;
-        private static MelonPreferences_Entry<string> trainingCourtnextAction;
-
+        private static LogsUploader logsUploader;
         static string deckName = "";
 
         public override void OnInitializeMelon()
         {
-
-            // Some code here
-
-            trainingCourtPrefs = MelonPreferences.CreateCategory("TrainingCourtPreferences");
-            // MelonPreferences_Category trainingCourtPrefs;
-            trainingCourtAutoUploads = trainingCourtPrefs.CreateEntry<bool>("autoUploads", false);
-            trainingCourtEmail = trainingCourtPrefs.CreateEntry<string>("email", "");
-            trainingCourtPassword = trainingCourtPrefs.CreateEntry<string>("password", "");
-            trainingCourtApiKey = trainingCourtPrefs.CreateEntry<string>("apiKey", "");
-            trainingCourtCurrentFormat = trainingCourtPrefs.CreateEntry<string>("currentFormat", "");
-            trainingCourtnextAction = trainingCourtPrefs.CreateEntry<string>("nextAction", "");
-            trainingCourtPrefs.SetFilePath("training_court.cfg");
-            Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: trainingCourtPrefs.autoUploads: " + trainingCourtAutoUploads.Value);
-            Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: trainingCourtPrefs.email: " + trainingCourtEmail.Value);
-
-
-            // trainingCourtPrefs.SaveToFile();
+            logsUploader = new LogsUploader();
         }
         public override void OnUpdate()
         {
@@ -530,106 +475,8 @@ namespace PTCGLDeckTracker
                 player.hand.Clear();
 
                 deckName = assumedLocalPlayer.deckInfo.deckName;
-
-                // Melon<IronTracks>.Logger.Msg("SendMatchStartTelemetryPatch():: calling DoBattleLogUpload...");
-                // DoBattleLogUpload(____battleLog);
             }
         }
-        public class TrainingCourtPayload
-        {
-            // Non-static field.
-            public string user;
-            public string archetype;
-            public string opp_archetype;
-            public string log;
-            public string turn_order;
-            public string result;
-            public string format;
-            // Non-static method.
-        }
-
-        // TODO: store these in melon prefs instead?
-        static string accessToken = "";
-        static string refreshToken = "";
-
-        public static IEnumerator DoBattleLogUpload(BattleLog battleLog)
-        {
-            var battleLogMenuExporter = new BattleLogExporter();
-
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: calling ExportBattleLog...");
-            battleLogMenuExporter.ExportBattleLog(battleLog);
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + GUIUtility.systemCopyBuffer);
-
-
-            if (!trainingCourtAutoUploads.Value)
-            {
-                yield break;
-            }
-
-            string trainingCourtJwt;
-
-            // TODO: skip login if we already have a stashed token / refresh token that are valid
-            var formData = new List<IMultipartFormSection>();
-            formData.Add(new MultipartFormDataSection("1_email", trainingCourtEmail.Value));
-            formData.Add(new MultipartFormDataSection("1_password", trainingCourtPassword.Value));
-            formData.Add(new MultipartFormDataSection("0", "[\"$K1\"]"));
-
-            var loginRequest = UnityWebRequest.Post("https://www.trainingcourt.app/login", formData);
-            loginRequest.redirectLimit = 0;
-            loginRequest.timeout = 15;
-            loginRequest.SetRequestHeader("next-action", trainingCourtnextAction.Value);
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => sending web request now...");
-            yield return loginRequest.SendWebRequest();
-
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
-
-            var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
-            trainingCourtJwt = tokenHeaderValue.Replace("sb-yuruvpbgsukqiaeduaay-auth-token=base64-", "");
-            trainingCourtJwt = trainingCourtJwt.Split(';')[0];
-            var jwtBytes = Convert.FromBase64String(trainingCourtJwt);
-            trainingCourtJwt = Encoding.UTF8.GetString(jwtBytes);
-
-            var parsedBase64Token = JObject.Parse(trainingCourtJwt);
-
-            accessToken = (string)parsedBase64Token["access_token"];
-            refreshToken = (string)parsedBase64Token["refresh_token"];
-
-            var jsonStringBuilder = new StringWriter();
-            var serializer = new JsonSerializer();
-            var payload = new TrainingCourtPayload();
-
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.user => " + (string)parsedBase64Token["user"]["id"]);
-            payload.user = (string)parsedBase64Token["user"]["id"];
-            payload.log = GUIUtility.systemCopyBuffer;
-            payload.format = trainingCourtCurrentFormat.Value;
-            var archetype = deckName.Split('_')[0];
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.archetype => " + archetype);
-            payload.archetype = archetype;
-            serializer.Serialize(jsonStringBuilder, payload);
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + jsonStringBuilder.ToString());
-
-            var url = "https://yuruvpbgsukqiaeduaay.supabase.co/rest/v1/logs?select=*";
-            var uploadRequest = UnityWebRequest.Post(url, jsonStringBuilder.ToString(), "application/json");
-            uploadRequest.timeout = 15;
-            uploadRequest.SetRequestHeader("apikey", trainingCourtApiKey.Value);
-            uploadRequest.SetRequestHeader("authorization", "Bearer " + accessToken);
-
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => sending web request now...");
-            yield return uploadRequest.SendWebRequest();
-
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  responseCode: " + uploadRequest.responseCode);
-            Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  text: " + uploadRequest.downloadHandler.text);
-            if (uploadRequest.result != UnityWebRequest.Result.Success)
-            {
-                Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + uploadRequest.error);
-                Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  result: " + uploadRequest.result);
-            }
-            else
-            {
-                Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  upload completed without error! :D");
-            }
-        }
-
 
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "LoadEndBattleScreen")]
         class EndGameHandlerPatch
@@ -638,15 +485,9 @@ namespace PTCGLDeckTracker
             {
                 Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance);
                 Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: ____battleLog count:" + ____battleLog.ToList().Count);
-                // StaticCoroutine.StartCorotuine(IronTracks.DoBattleLogUpload(____battleLog));
-                StaticCoroutine.StartCoroutine(IronTracks.DoBattleLogUpload(____battleLog));
-                // battleLogUploader.StartCoroutine()
-                // battleLogUploader.enabled = true;
-                // (DoBattleLogUpload(____battleLog));
+                StaticCoroutine.StartCoroutine(logsUploader.DoBattleLogUpload(____battleLog, deckName));
             }
         }
-
-
 
         [HarmonyLib.HarmonyPatch(typeof(PlayerCardOwner), "ProcessCardGainedResult")]
         class ProcessCardGainedPatch
