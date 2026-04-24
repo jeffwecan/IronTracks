@@ -198,6 +198,7 @@ namespace PTCGLDeckTracker.TrainingCourt
       var payload = new TrainingCourtPayload();
       payload.log = GUIUtility.systemCopyBuffer;
       payload.format = currentFormat.Value;
+      // TODO: should validate this archetype valid against: https://www.trainingcourt.app/api/pokedex
       var archetype = deckName.Split('_')[0];
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.archetype => " + archetype);
       payload.archetype = archetype;
