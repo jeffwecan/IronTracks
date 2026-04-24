@@ -48,10 +48,9 @@ namespace PTCGLDeckTracker.TrainingCourt
     private static MelonPreferences_Entry<string> currentFormat;
     private static MelonPreferences_Entry<string> nextAction;
     private static MelonPreferences_Entry<string> refreshToken;
-
-
-    // TODO: store these in melon prefs instead?
-    static string accessToken = "";
+    private static MelonPreferences_Entry<string> userId;
+    private static MelonPreferences_Entry<string> accessToken;
+    private static MelonPreferences_Entry<int> tokenExp;
 
     public LogsUploader()
     {
@@ -67,6 +66,9 @@ namespace PTCGLDeckTracker.TrainingCourt
       currentFormat = trainingCourtPrefs.CreateEntry<string>("currentFormat", "");
       nextAction = trainingCourtPrefs.CreateEntry<string>("nextAction", "");
       refreshToken = trainingCourtPrefs.CreateEntry<string>("refreshToken", "");
+      userId = trainingCourtPrefs.CreateEntry<string>("userId", "");
+      accessToken = trainingCourtPrefs.CreateEntry<string>("accessToken", "");
+      tokenExp = trainingCourtPrefs.CreateEntry<int>("tokenExp", 0);
       trainingCourtPrefs.SetFilePath("training_court.cfg");
       Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: Prefs.autoUploads: " + autoUploads.Value);
       Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: Prefs.email: " + email.Value);
@@ -90,35 +92,50 @@ namespace PTCGLDeckTracker.TrainingCourt
       public string refresh_token;
     }
 
-    // private performTokenRefresh()
-    // {
-    //   // curl 'https://yuruvpbgsukqiaeduaay.supabase.co/auth/v1/token?grant_type=refresh_token' \
-    //   //   -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1cnV2cGJnc3VrcWlhZWR1YWF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM2NDA2MDcsImV4cCI6MjAzOTIxNjYwN30.GtRRwMpiMMmbcpUci9xXqthWhgL5daKvsUZUaRgFPkI' \
-    //   //   -H 'content-type: application/json;charset=UTF-8' \
-    //   //   --data-raw '{"refresh_token":"tzd3rrffw6dk"}'
-    // }
-
-    // private void performLogin()
-    // {
-
-    // }
-
-    public IEnumerator DoBattleLogUpload(BattleLog battleLog, string deckName)
+    private void performTokenRefresh()
     {
-      var battleLogMenuExporter = new BattleLogExporter();
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: performTokenRefresh() called");
+      var jsonStringBuilder = new StringWriter();
+      var serializer = new JsonSerializer();
+      var payload = new RefreshTokenPayload();
 
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: calling ExportBattleLog...");
-      battleLogMenuExporter.ExportBattleLog(battleLog);
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + GUIUtility.systemCopyBuffer);
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.refreshToken => " + refreshToken.Value);
+      serializer.Serialize(jsonStringBuilder, payload);
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + jsonStringBuilder.ToString());
 
+      // # TODO: move this to melon pref
+      var url = "https://yuruvpbgsukqiaeduaay.supabase.co/auth/v1/token?grant_type=refresh_token";
+      var tokenRefreshRequest = UnityWebRequest.Post(url, jsonStringBuilder.ToString(), "application/json");
+      tokenRefreshRequest.timeout = 15;
+      tokenRefreshRequest.SetRequestHeader("apikey", apiKey.Value);
+      tokenRefreshRequest.SetRequestHeader("authorization", "Bearer " + accessToken);
 
-      if (!autoUploads.Value)
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => sending web request now...");
+      tokenRefreshRequest.SendWebRequest();
+      while (!tokenRefreshRequest.isDone) { }
+
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  responseCode: " + tokenRefreshRequest.responseCode);
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  text: " + tokenRefreshRequest.downloadHandler.text);
+      if (tokenRefreshRequest.result != UnityWebRequest.Result.Success)
       {
-        yield break;
+        Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + tokenRefreshRequest.error);
+        Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  result: " + tokenRefreshRequest.result);
+      }
+      else
+      {
+        Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  upload completed without error! :D");
       }
 
-      string trainingCourtJwt;
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + tokenRefreshRequest.responseCode);
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => tokenRefreshRequest.downloadHandler.text: " + tokenRefreshRequest.downloadHandler.text);
+      parseJwtCookie(tokenRefreshRequest.downloadHandler.text);
+    }
 
+    private void performLogin()
+    {
+
+
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: performLogin() called");
       // TODO: skip login if we already have a stashed token / refresh token that are valid
       var formData = new List<IMultipartFormSection>();
       formData.Add(new MultipartFormDataSection("1_email", email.Value));
@@ -130,27 +147,65 @@ namespace PTCGLDeckTracker.TrainingCourt
       loginRequest.timeout = 15;
       loginRequest.SetRequestHeader("next-action", nextAction.Value);
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => sending web request now...");
-      yield return loginRequest.SendWebRequest();
+      loginRequest.SendWebRequest();
+      while (!loginRequest.isDone) { }
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
 
       var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
+      string trainingCourtJwt;
       trainingCourtJwt = tokenHeaderValue.Replace("sb-yuruvpbgsukqiaeduaay-auth-token=base64-", "");
       trainingCourtJwt = trainingCourtJwt.Split(';')[0];
       var jwtBytes = Convert.FromBase64String(trainingCourtJwt);
       trainingCourtJwt = Encoding.UTF8.GetString(jwtBytes);
+      parseJwtCookie(trainingCourtJwt);
+
+
+    }
+
+    private string parseJwtCookie(string trainingCourtJwt)
+    {
 
       var parsedBase64Token = JObject.Parse(trainingCourtJwt);
 
-      accessToken = (string)parsedBase64Token["access_token"];
+      accessToken.Value = (string)parsedBase64Token["access_token"];
+      tokenExp.Value = (int)parsedBase64Token["expires_at"];
       refreshToken.Value = (string)parsedBase64Token["refresh_token"];
+      userId.Value = (string)parsedBase64Token["user"]["id"];
+      trainingCourtPrefs.SaveToFile();
+      return trainingCourtJwt;
+    }
+
+    public IEnumerator DoBattleLogUpload(BattleLog battleLog, string deckName)
+    {
+      var battleLogMenuExporter = new BattleLogExporter();
+
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: calling ExportBattleLog...");
+
+      if (!autoUploads.Value)
+      {
+        yield break;
+      }
+
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: tokenExp: " + tokenExp.Value + " currentTime: " + DateTimeOffset.UtcNow.ToUnixTimeSeconds() + " subtracted: " + (tokenExp.Value - DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+      if (accessToken.Value == "" || refreshToken.Value == "")
+      {
+        performLogin();
+      }
+      else if ((tokenExp.Value - DateTimeOffset.UtcNow.ToUnixTimeSeconds()) < 300)
+      {
+        performTokenRefresh();
+      }
+
+      battleLogMenuExporter.ExportBattleLog(battleLog);
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: " + GUIUtility.systemCopyBuffer);
 
       var jsonStringBuilder = new StringWriter();
       var serializer = new JsonSerializer();
       var payload = new TrainingCourtPayload();
 
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.user => " + (string)parsedBase64Token["user"]["id"]);
-      payload.user = (string)parsedBase64Token["user"]["id"];
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.user => " + userId.Value);
+      payload.user = userId.Value;
       payload.log = GUIUtility.systemCopyBuffer;
       payload.format = currentFormat.Value;
       var archetype = deckName.Split('_')[0];
@@ -164,7 +219,7 @@ namespace PTCGLDeckTracker.TrainingCourt
       var uploadRequest = UnityWebRequest.Post(url, jsonStringBuilder.ToString(), "application/json");
       uploadRequest.timeout = 15;
       uploadRequest.SetRequestHeader("apikey", apiKey.Value);
-      uploadRequest.SetRequestHeader("authorization", "Bearer " + accessToken);
+      uploadRequest.SetRequestHeader("authorization", "Bearer " + accessToken.Value);
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => sending web request now...");
       yield return uploadRequest.SendWebRequest();
