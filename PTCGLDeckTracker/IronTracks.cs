@@ -2,15 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using Harmony;
-using HarmonyLib;
 using MelonLoader;
-using RainierClientSDK;
 using UnityEngine.SceneManagement;
 using TPCI.Rainier.Match.Cards.Ownership;
 using PTCGLDeckTracker.CardCollection;
 using TPCI.Rainier.Match.Cards;
-using CardDatabase.DataAccess;
+using _Rainier.Scripts.BattleLog;
 
 namespace PTCGLDeckTracker
 {
