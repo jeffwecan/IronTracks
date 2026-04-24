@@ -510,5 +510,66 @@ namespace PTCGLDeckTracker
                 StaticCoroutine.StartCoroutine(logsUploader.DoBattleLogUpload(____battleLog, player.deck.GetDeckName()));
             }
         }
+
+        [HarmonyLib.HarmonyPatch(typeof(MatchStateChangeEventHandler), "HandleMatchStateChanged")]
+        class HandleMatchStateChangedPatch
+        {
+            static void Postfix(MatchManager.MatchState newState)
+            {
+                // Tracks changes between turns / checkup / turn /etc
+                Melon<IronTracks>.Logger.Msg("HandleMatchStateChanged():: " + newState);
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(MulliganController), "Reset")]
+        class MulliganControllerResetPatch
+        {
+            static void Postfix(int ___currentMode)
+            {
+                Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called:: ___currentMode => " + ___currentMode);
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "AddGainedCardToLocalRegistry")]
+        class HandOnCardAddedPatch
+        {
+            static void Postfix(List<Card3D> ___ownedCards, OwnerData data, bool gainedFromDrop)
+            {
+                if (data.card.playerID != PlayerID.LOCAL)
+                {
+                    return;
+                }
+                Melon<IronTracks>.Logger.Msg("HandOnCardAddedPatch() called => " + data.card.name + " (" + gainedFromDrop + ")");
+
+
+                player.hand.Clear();
+
+                foreach (var ownedCard in ___ownedCards)
+                {
+                    player.hand.OnCardAdded(ownedCard);
+                }
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "RemoveCardFromLocalRegistry")]
+        class HandOnCardRemovedPatch
+        {
+            static void Postfix(List<Card3D> ___ownedCards, OwnerData data)
+            {
+                // ownedCards.Remove(data.card); in the associated class method may be called more
+                // than once for the same card
+                if (data.card.playerID != PlayerID.LOCAL)
+                {
+                    return;
+                }
+                Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called => " + data.card.name);
+                player.hand.Clear();
+
+                foreach (var ownedCard in ___ownedCards)
+                {
+                    player.hand.OnCardAdded(ownedCard);
+                }
+            }
+        }
     }
 }
