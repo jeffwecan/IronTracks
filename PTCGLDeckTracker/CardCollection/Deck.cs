@@ -67,11 +67,6 @@ namespace PTCGLDeckTracker.CardCollection
             return total;
         }
 
-        public int GetTotalQuantityOfCards()
-        {
-            return _cardCount;
-        }
-
         public void PopulateDeck(Dictionary<string, int> deck)
         {
             Clear();
