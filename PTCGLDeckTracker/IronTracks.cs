@@ -468,7 +468,7 @@ namespace PTCGLDeckTracker
                 {
                     return;
                 }
-                // Make sure that we are targetting the local player (ourself)
+                // Make sure that we are targeting the local player (ourself)
                 if (__instance.playerID != PlayerID.LOCAL)
                 {
                     return;
