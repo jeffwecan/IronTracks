@@ -73,7 +73,6 @@ namespace PTCGLDeckTracker
         private Rect _prizeCardsWindowRect = new Rect(0, PrizeTrackerInitialY, DefaultWindowWidth, PrizeTrackerInitialHeight);
         private bool _prizeCardsSpawned = false;
         private readonly List<CardBasic> _spawnedPrizeCards = new List<CardBasic>();
-        private GameObject _prizeCardBackground;
         private bool _showPrizeCardTitle = false;
         private Rect _prizeCardTitleRect = new Rect(Screen.width / 2 - (PrizeTitleWidth / 2), PrizeTitleInitialY, PrizeTitleWidth, PrizeTitleHeight);
         private bool _showControlPanel = false;
@@ -422,11 +421,6 @@ namespace PTCGLDeckTracker
                 UnityEngine.Object.Destroy(card.gameObject);
             }
             _spawnedPrizeCards.Clear();
-
-            if (_prizeCardBackground != null)
-            {
-                UnityEngine.Object.Destroy(_prizeCardBackground);
-            }
         }
 
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "SendMatchStartTelemetry")]
