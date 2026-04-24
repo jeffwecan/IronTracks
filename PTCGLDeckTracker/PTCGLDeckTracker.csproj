@@ -70,6 +70,12 @@
     <Reference Include="RainierClientSDK">
       <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\RainierClientSDK.dll</HintPath>
     </Reference>
+    <Reference Include="TPCIRainierClient">
+      <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\TPCI.RainierClient.dll</HintPath>
+    </Reference>
+    <Reference Include="TPCISharedSingletons">
+      <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\TPCI.Shared.Singletons.dll</HintPath>
+    </Reference>
     <Reference Include="SharedLogicUtils">
       <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\SharedLogicUtils.dll</HintPath>
     </Reference>
