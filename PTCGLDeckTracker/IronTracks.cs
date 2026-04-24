@@ -455,6 +455,7 @@ namespace PTCGLDeckTracker
                 Melon<IronTracks>.Logger.Msg(playerOneName + " vs. " + playerTwoName);
 
                 player.deck.PopulateDeck(assumedLocalPlayer.deckInfo.cards);
+                player.deck.SetDeckName(assumedLocalPlayer.deckInfo.deckName);
             }
         }
 

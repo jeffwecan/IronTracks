@@ -12,6 +12,8 @@ namespace PTCGLDeckTracker.CardCollection
         public PrizeCards prizeCards { get; set; } = new PrizeCards();
 
         private string _deckOwner = "";
+        private string _deckName = "";
+
 
         List<string> deckRenderOrder = new List<string>();
         private Dictionary<string, TrackedCard> _currentCardsInDeck;
@@ -36,6 +38,16 @@ namespace PTCGLDeckTracker.CardCollection
         public void SetDeckOwner(string deckOwner)
         {
             this._deckOwner = deckOwner;
+        }
+
+        public string GetDeckName()
+        {
+            return _deckName;
+        }
+
+        public void SetDeckName(string deckName)
+        {
+            _deckName = deckName;
         }
 
         public List<TrackedCard> GetCardsForRender()
