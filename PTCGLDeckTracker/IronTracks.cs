@@ -428,7 +428,7 @@ namespace PTCGLDeckTracker
         }
 
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "SendMatchStartTelemetry")]
-        class Patch
+        class SendMatchStartTelemetryPatch
         {
             static void Prefix(MatchManager __instance, NetworkMatchController.MatchDetails game)
             {
