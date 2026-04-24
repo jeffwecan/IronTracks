@@ -53,7 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>$(PTCGL_PATH)\MelonLoader\0Harmony.dll</HintPath>
+      <HintPath>$(PTCGL_PATH)\MelonLoader\net35\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\Assembly-CSharp.dll</HintPath>
@@ -65,7 +65,7 @@
       <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\CardDatabase.DataAccess.dll</HintPath>
     </Reference>
     <Reference Include="MelonLoader">
-      <HintPath>$(PTCGL_PATH)\MelonLoader\MelonLoader.dll</HintPath>
+      <HintPath>$(PTCGL_PATH)\MelonLoader\net35\MelonLoader.dll</HintPath>
     </Reference>
     <Reference Include="RainierClientSDK">
       <HintPath>$(PTCGL_PATH)\Pokemon TCG Live_Data\Managed\RainierClientSDK.dll</HintPath>
