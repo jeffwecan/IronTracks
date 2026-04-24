@@ -6,6 +6,7 @@ using MelonLoader;
 using UnityEngine.SceneManagement;
 using TPCI.Rainier.Match.Cards.Ownership;
 using PTCGLDeckTracker.CardCollection;
+using PTCGLDeckTracker.TrainingCourt;
 using TPCI.Rainier.Match.Cards;
 using _Rainier.Scripts.BattleLog;
 
@@ -75,6 +76,12 @@ namespace PTCGLDeckTracker
         private bool _showControlPanel = false;
         private Rect _controlPanelRect = new Rect(Screen.width / 2 - (ControlPanelWidth / 2), Screen.height / 2 - (ControlPanelHeight / 2), ControlPanelWidth, ControlPanelHeight);
 
+        private static LogsUploader logsUploader;
+
+        public override void OnInitializeMelon()
+        {
+            logsUploader = new LogsUploader();
+        }
         public override void OnUpdate()
         {
             HandleCardTooltip();
@@ -427,8 +434,9 @@ namespace PTCGLDeckTracker
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "SendMatchStartTelemetry")]
         class SendMatchStartTelemetryPatch
         {
-            static void Prefix(MatchManager __instance, NetworkMatchController.MatchDetails game)
+            static void Prefix(MatchManager __instance, BattleLog ____battleLog, NetworkMatchController.MatchDetails game)
             {
+
                 var assumedLocalPlayer = game.players[0];
                 var playerName = assumedLocalPlayer.playerName;
 
@@ -489,6 +497,17 @@ namespace PTCGLDeckTracker
                     return;
                 }
                 player.OnRemovedCardFromCollection(data.card, __instance);
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(MatchManager), "LoadEndBattleScreen")]
+        class EndGameHandlerPatch
+        {
+            static void Prefix(MatchManager __instance, BattleLog ____battleLog)
+            {
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: ____battleLog count:" + ____battleLog.ToList().Count);
+                StaticCoroutine.StartCoroutine(logsUploader.DoBattleLogUpload(____battleLog, player.deck.GetDeckName()));
             }
         }
     }
