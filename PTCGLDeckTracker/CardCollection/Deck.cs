@@ -206,14 +206,14 @@ namespace PTCGLDeckTracker.CardCollection
         public override void OnCardAdded(Card3D cardAdded)
         {
             base.OnCardAdded(cardAdded);
-            Melon<IronTracks>.Logger.Msg("Added Card: " + Card.GetEnglishNameFromCard3DName(cardAdded.name) + " into deck.");
+            // Melon<IronTracks>.Logger.Msg("Added Card: " + Card.GetEnglishNameFromCard3DName(cardAdded.name) + " into deck.");
             AddCardToCurrentDeck(cardAdded);
         }
 
         public override void OnCardRemoved(Card3D cardRemoved)
         {
             base.OnCardRemoved(cardRemoved);
-            Melon<IronTracks>.Logger.Msg("Removed Card: " + Card.GetEnglishNameFromCard3DName(cardRemoved.name) + " from deck.");
+            // Melon<IronTracks>.Logger.Msg("Removed Card: " + Card.GetEnglishNameFromCard3DName(cardRemoved.name) + " from deck.");
             RemoveCardFromCurrentDeck(cardRemoved);
         }
     }
