@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using Harmony;
 using HarmonyLib;
@@ -18,12 +16,13 @@ namespace PTCGLDeckTracker
 {
     public class IronTracks : MelonMod
     {
+        // TODO:? move these to prefs instead perhaps?
         // General UI Constants
-        private const float DefaultWindowWidth = 250f;
-        private const float LineHeight = 20f;
+        private const float DefaultWindowWidth = 400f;
+        private const float LineHeight = 26f;
         private const float WindowHeaderHeight = 25f;
         private const float WindowVerticalPadding = 60f;
-        private const int FontSize = 15;
+        private const int FontSize = 25;
         private const int TextPadding = 5;
         private const float HorizontalMargin = 5f;
         private const float TotalHorizontalMargin = HorizontalMargin * 2;
