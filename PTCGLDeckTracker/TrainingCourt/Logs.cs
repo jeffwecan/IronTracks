@@ -155,12 +155,19 @@ namespace PTCGLDeckTracker.TrainingCourt
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
 
+
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => getting cookie");
       var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
       string trainingCourtJwt;
-      trainingCourtJwt = tokenHeaderValue.Replace("sb-yuruvpbgsukqiaeduaay-auth-token=base64-", "");
+      var tokenPrefix = "sb-yuruvpbgsukqiaeduaay-auth-token=base64-";
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => replacing prefix: " + tokenPrefix);
+      trainingCourtJwt = tokenHeaderValue.Replace(tokenPrefix, "");
       trainingCourtJwt = trainingCourtJwt.Split(';')[0];
+
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => base64 decode");
       var jwtBytes = Convert.FromBase64String(trainingCourtJwt);
       trainingCourtJwt = Encoding.UTF8.GetString(jwtBytes);
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => base64 decoded and stringified");
       parseJwtCookie(trainingCourtJwt);
 
 
@@ -168,6 +175,7 @@ namespace PTCGLDeckTracker.TrainingCourt
 
     private string parseJwtCookie(string trainingCourtJwt)
     {
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: parseJwtCookie => parsing token");
 
       var parsedBase64Token = JObject.Parse(trainingCourtJwt);
 
@@ -175,7 +183,9 @@ namespace PTCGLDeckTracker.TrainingCourt
       tokenExp.Value = (int)parsedBase64Token["expires_at"];
       refreshToken.Value = (string)parsedBase64Token["refresh_token"];
       userId.Value = (string)parsedBase64Token["user"]["id"];
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: parseJwtCookie => saving prefs");
       trainingCourtPrefs.SaveToFile();
+      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: parseJwtCookie => prefs saved!");
       return trainingCourtJwt;
     }
 
