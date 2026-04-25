@@ -54,11 +54,8 @@ namespace PTCGLDeckTracker.TrainingCourt
 
     public LogsUploader()
     {
-
-      // Some code here
-
       trainingCourtPrefs = MelonPreferences.CreateCategory("TrainingCourtPreferences");
-      // MelonPreferences_Category Prefs;
+
       autoUploads = trainingCourtPrefs.CreateEntry<bool>("autoUploads", false);
       email = trainingCourtPrefs.CreateEntry<string>("email", "");
       password = trainingCourtPrefs.CreateEntry<string>("password", "");
@@ -69,7 +66,9 @@ namespace PTCGLDeckTracker.TrainingCourt
       userId = trainingCourtPrefs.CreateEntry<string>("userId", "");
       accessToken = trainingCourtPrefs.CreateEntry<string>("accessToken", "");
       tokenExp = trainingCourtPrefs.CreateEntry<int>("tokenExp", 0);
+
       trainingCourtPrefs.SetFilePath("training_court.cfg");
+
       Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: Prefs.autoUploads: " + autoUploads.Value);
       Melon<IronTracks>.Logger.Msg("OnInitializeMelon():: Prefs.email: " + email.Value);
     }
@@ -116,7 +115,6 @@ namespace PTCGLDeckTracker.TrainingCourt
       while (!tokenRefreshRequest.isDone) { }
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  responseCode: " + tokenRefreshRequest.responseCode);
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload =>  text: " + tokenRefreshRequest.downloadHandler.text);
       if (tokenRefreshRequest.result != UnityWebRequest.Result.Success)
       {
         Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: upload => error?: " + tokenRefreshRequest.error);
@@ -129,15 +127,12 @@ namespace PTCGLDeckTracker.TrainingCourt
       }
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + tokenRefreshRequest.responseCode);
-      Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => tokenRefreshRequest.downloadHandler.text: " + tokenRefreshRequest.downloadHandler.text);
       parseJwtCookie(tokenRefreshRequest.downloadHandler.text);
       return true;
     }
 
     private void performLogin()
     {
-
-
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: performLogin() called");
       var formData = new List<IMultipartFormSection>();
       formData.Add(new MultipartFormDataSection("1_email", email.Value));
@@ -153,7 +148,6 @@ namespace PTCGLDeckTracker.TrainingCourt
       while (!loginRequest.isDone) { }
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => responseCode: " + loginRequest.responseCode);
-
 
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload:: Login => getting cookie");
       var tokenHeaderValue = loginRequest.GetResponseHeader("Set-Cookie");
@@ -202,7 +196,6 @@ namespace PTCGLDeckTracker.TrainingCourt
       var archetype = deckName.Split('_')[0];
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: payload.archetype => " + archetype);
       payload.archetype = archetype;
-
 
       if (!autoUploads.Value)
       {
