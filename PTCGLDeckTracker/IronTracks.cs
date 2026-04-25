@@ -1,29 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-using Harmony;
-using HarmonyLib;
 using MelonLoader;
-using RainierClientSDK;
 using UnityEngine.SceneManagement;
 using TPCI.Rainier.Match.Cards.Ownership;
 using PTCGLDeckTracker.CardCollection;
+using PTCGLDeckTracker.TrainingCourt;
 using TPCI.Rainier.Match.Cards;
-using CardDatabase.DataAccess;
+using _Rainier.Scripts.BattleLog;
 
 namespace PTCGLDeckTracker
 {
     public class IronTracks : MelonMod
     {
+        // TODO:? move these to prefs instead perhaps?
         // General UI Constants
-        private const float DefaultWindowWidth = 250f;
-        private const float LineHeight = 20f;
+        private const float DefaultWindowWidth = 400f;
+        private const float LineHeight = 26f;
         private const float WindowHeaderHeight = 25f;
         private const float WindowVerticalPadding = 60f;
-        private const int FontSize = 15;
+        private const int FontSize = 25;
         private const int TextPadding = 5;
         private const float HorizontalMargin = 5f;
         private const float TotalHorizontalMargin = HorizontalMargin * 2;
@@ -74,12 +71,17 @@ namespace PTCGLDeckTracker
         private Rect _prizeCardsWindowRect = new Rect(0, PrizeTrackerInitialY, DefaultWindowWidth, PrizeTrackerInitialHeight);
         private bool _prizeCardsSpawned = false;
         private readonly List<CardBasic> _spawnedPrizeCards = new List<CardBasic>();
-        private GameObject _prizeCardBackground;
         private bool _showPrizeCardTitle = false;
         private Rect _prizeCardTitleRect = new Rect(Screen.width / 2 - (PrizeTitleWidth / 2), PrizeTitleInitialY, PrizeTitleWidth, PrizeTitleHeight);
         private bool _showControlPanel = false;
         private Rect _controlPanelRect = new Rect(Screen.width / 2 - (ControlPanelWidth / 2), Screen.height / 2 - (ControlPanelHeight / 2), ControlPanelWidth, ControlPanelHeight);
 
+        private static LogsUploader logsUploader;
+
+        public override void OnInitializeMelon()
+        {
+            logsUploader = new LogsUploader();
+        }
         public override void OnUpdate()
         {
             HandleCardTooltip();
@@ -152,6 +154,8 @@ namespace PTCGLDeckTracker
 
             var totalAssumedCards = player.deck.GetAssumedTotalQuantityOfCards();
             var totalActualCards = player.deck.GetTotalQuantityOfCards();
+            var totalHandCards = player.hand.GetTotalQuantityOfCards();
+            var alaDamage = totalHandCards * 20;
             var isUncertain = totalAssumedCards != totalActualCards;
 
             var yOffset = WindowHeaderHeight;
@@ -210,7 +214,9 @@ namespace PTCGLDeckTracker
             yOffset += LineHeight;
             GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Total Cards in Deck: " + totalActualCards, counterGUIStyle);
             yOffset += LineHeight;
-            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Total ASSUMED Cards in Deck: " + totalAssumedCards, counterGUIStyle);
+            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Assumed Cards in Deck: " + totalAssumedCards, counterGUIStyle);
+            yOffset += LineHeight;
+            GUI.Label(new Rect(HorizontalMargin, yOffset, _deckTrackerWindowRect.width - TotalHorizontalMargin, LineHeight), "Cards in Hand: " + totalHandCards + " ( x20 => " + alaDamage + " )", counterGUIStyle);
         }
 
         void DrawPrizeTitleWindow(int windowID)
@@ -423,18 +429,17 @@ namespace PTCGLDeckTracker
                 UnityEngine.Object.Destroy(card.gameObject);
             }
             _spawnedPrizeCards.Clear();
-
-            if (_prizeCardBackground != null)
-            {
-                UnityEngine.Object.Destroy(_prizeCardBackground);
-            }
         }
 
+
+        // [HarmonyLib.HarmonyPatch(typeof(MatchManager), "StartGame")] # TODO maybe?
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "SendMatchStartTelemetry")]
-        class Patch
+        class SendMatchStartTelemetryPatch
         {
-            static void Prefix(MatchManager __instance, NetworkMatchController.MatchDetails game)
+            static void Prefix(MatchManager __instance, BattleLog ____battleLog, NetworkMatchController.MatchDetails game)
             {
+                Melon<IronTracks>.Logger.Msg("SendMatchStartTelemetryPatch():: " + __instance.name);
+                Melon<IronTracks>.Logger.Msg("SendMatchStartTelemetryPatch():: " + game.matchID);
                 var assumedLocalPlayer = game.players[0];
                 var playerName = assumedLocalPlayer.playerName;
 
@@ -458,6 +463,7 @@ namespace PTCGLDeckTracker
                 Melon<IronTracks>.Logger.Msg(playerOneName + " vs. " + playerTwoName);
 
                 player.deck.PopulateDeck(assumedLocalPlayer.deckInfo.cards);
+                player.deck.SetDeckName(assumedLocalPlayer.deckInfo.deckName);
             }
         }
 
@@ -470,7 +476,7 @@ namespace PTCGLDeckTracker
                 {
                     return;
                 }
-                // Make sure that we are targetting the local player (ourself)
+                // Make sure that we are targeting the local player (ourself)
                 if (__instance.playerID != PlayerID.LOCAL)
                 {
                     return;
@@ -496,6 +502,79 @@ namespace PTCGLDeckTracker
                 player.OnRemovedCardFromCollection(data.card, __instance);
             }
         }
-    }
 
+        [HarmonyLib.HarmonyPatch(typeof(MatchManager), "LoadEndBattleScreen")]
+        class EndGameHandlerPatch
+        {
+            static void Prefix(MatchManager __instance, BattleLog ____battleLog)
+            {
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance.name);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + NetworkMatchController.currentMatchID);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: ____battleLog count:" + ____battleLog.ToList().Count);
+                StaticCoroutine.StartCoroutine(logsUploader.DoBattleLogUpload(____battleLog, player.deck.GetDeckName(), NetworkMatchController.currentMatchID));
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(MatchStateChangeEventHandler), "HandleMatchStateChanged")]
+        class HandleMatchStateChangedPatch
+        {
+            static void Postfix(MatchManager.MatchState newState)
+            {
+                // Tracks changes between turns / checkup / turn /etc
+                Melon<IronTracks>.Logger.Msg("HandleMatchStateChanged():: " + newState);
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(MulliganController), "Reset")]
+        class MulliganControllerResetPatch
+        {
+            static void Postfix(int ___currentMode)
+            {
+                Melon<IronTracks>.Logger.Msg("MulliganControllerResetPatch() called:: ___currentMode => " + ___currentMode);
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "AddGainedCardToLocalRegistry")]
+        class HandOnCardAddedPatch
+        {
+            static void Postfix(List<Card3D> ___ownedCards, OwnerData data, bool gainedFromDrop)
+            {
+                if (data.card.playerID != PlayerID.LOCAL)
+                {
+                    return;
+                }
+                Melon<IronTracks>.Logger.Msg("HandOnCardAddedPatch() called => " + data.card.name + " (" + gainedFromDrop + ")");
+
+
+                player.hand.Clear();
+
+                foreach (var ownedCard in ___ownedCards)
+                {
+                    player.hand.OnCardAdded(ownedCard);
+                }
+            }
+        }
+
+        [HarmonyLib.HarmonyPatch(typeof(HandController), "RemoveCardFromLocalRegistry")]
+        class HandOnCardRemovedPatch
+        {
+            static void Postfix(List<Card3D> ___ownedCards, OwnerData data)
+            {
+                // ownedCards.Remove(data.card); in the associated class method may be called more
+                // than once for the same card
+                if (data.card.playerID != PlayerID.LOCAL)
+                {
+                    return;
+                }
+                Melon<IronTracks>.Logger.Msg("HandOnCardRemovedPatch() called => " + data.card.name);
+                player.hand.Clear();
+
+                foreach (var ownedCard in ___ownedCards)
+                {
+                    player.hand.OnCardAdded(ownedCard);
+                }
+            }
+        }
+    }
 }

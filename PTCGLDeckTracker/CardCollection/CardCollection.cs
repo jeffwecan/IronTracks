@@ -45,5 +45,10 @@ namespace PTCGLDeckTracker.CardCollection
         {
             _cardCount--;
         }
+
+        public int GetTotalQuantityOfCards()
+        {
+            return _cardCount;
+        }
     }
 }

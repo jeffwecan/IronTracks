@@ -12,6 +12,8 @@ namespace PTCGLDeckTracker.CardCollection
         public PrizeCards prizeCards { get; set; } = new PrizeCards();
 
         private string _deckOwner = "";
+        private string _deckName = "";
+
 
         List<string> deckRenderOrder = new List<string>();
         private Dictionary<string, TrackedCard> _currentCardsInDeck;
@@ -36,6 +38,16 @@ namespace PTCGLDeckTracker.CardCollection
         public void SetDeckOwner(string deckOwner)
         {
             this._deckOwner = deckOwner;
+        }
+
+        public string GetDeckName()
+        {
+            return _deckName;
+        }
+
+        public void SetDeckName(string deckName)
+        {
+            _deckName = deckName;
         }
 
         public List<TrackedCard> GetCardsForRender()
@@ -67,18 +79,13 @@ namespace PTCGLDeckTracker.CardCollection
             return total;
         }
 
-        public int GetTotalQuantityOfCards()
-        {
-            return _cardCount;
-        }
-
         public void PopulateDeck(Dictionary<string, int> deck)
         {
             Clear();
 
-            var pokemons = new List<string>();
-            var trainers = new List<string>();
-            var energies = new List<string>();
+            var pokemons = new List<Dictionary<string, string>>();
+            var trainers = new List<Dictionary<string, string>>();
+            var energies = new List<Dictionary<string, string>>();
 
             foreach (var pair in deck)
             {
@@ -90,36 +97,51 @@ namespace PTCGLDeckTracker.CardCollection
                 var card = new Card(cardID);
                 card.quantity = quantity;
                 card.englishName = cdr.EnglishCardName;
-                card.setID = cdr.CardSetID;
+                card.setID = cdr.CardSet.SetCode;
 
                 _cards[cardID] = new TrackedCard(card);
                 _cardsWithId[cardID] = quantity;
 
                 if (cdr.IsPokemonCard())
                 {
-                    pokemons.Add(cardID);
+                    var pokemonEntry = new Dictionary<string, string>
+                    {
+                        { "name", cdr.EnglishCardName },
+                        { "cardId", cardID }
+                    };
+                    pokemons.Add(pokemonEntry);
                 }
                 else if (cdr.IsTrainerCard())
                 {
-                    trainers.Add(cardID);
+                    var trainerEntry = new Dictionary<string, string>
+                    {
+                        { "name", cdr.EnglishCardName },
+                        { "cardId", cardID }
+                    };
+                    trainers.Add(trainerEntry);
                 }
                 else
                 {
-                    energies.Add(cardID);
+                    var energiesEntry = new Dictionary<string, string>
+                    {
+                        { "name", cdr.EnglishCardName },
+                        { "cardId", cardID }
+                    };
+                    energies.Add(energiesEntry);
                 }
             }
 
-            foreach (var item in pokemons)
+            foreach (var item in pokemons.OrderBy(p => p["name"]))
             {
-                deckRenderOrder.Add(item);
+                deckRenderOrder.Add(item["cardId"]);
             }
-            foreach (var item in trainers)
+            foreach (var item in trainers.OrderBy(t => t["name"]))
             {
-                deckRenderOrder.Add(item);
+                deckRenderOrder.Add(item["cardId"]);
             }
-            foreach (var item in energies)
+            foreach (var item in energies.OrderBy(t => t["name"]))
             {
-                deckRenderOrder.Add(item);
+                deckRenderOrder.Add(item["cardId"]);
             }
             _currentCardsInDeck = _cards.ToDictionary(entry => entry.Key, entry => new TrackedCard(entry.Value));
         }
@@ -196,14 +218,14 @@ namespace PTCGLDeckTracker.CardCollection
         public override void OnCardAdded(Card3D cardAdded)
         {
             base.OnCardAdded(cardAdded);
-            Melon<IronTracks>.Logger.Msg("Added Card: " + Card.GetEnglishNameFromCard3DName(cardAdded.name) + " into deck.");
+            // Melon<IronTracks>.Logger.Msg("Added Card: " + Card.GetEnglishNameFromCard3DName(cardAdded.name) + " into deck.");
             AddCardToCurrentDeck(cardAdded);
         }
 
         public override void OnCardRemoved(Card3D cardRemoved)
         {
             base.OnCardRemoved(cardRemoved);
-            Melon<IronTracks>.Logger.Msg("Removed Card: " + Card.GetEnglishNameFromCard3DName(cardRemoved.name) + " from deck.");
+            // Melon<IronTracks>.Logger.Msg("Removed Card: " + Card.GetEnglishNameFromCard3DName(cardRemoved.name) + " from deck.");
             RemoveCardFromCurrentDeck(cardRemoved);
         }
     }
