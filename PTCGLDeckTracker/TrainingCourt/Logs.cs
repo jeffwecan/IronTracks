@@ -40,6 +40,7 @@ namespace PTCGLDeckTracker.TrainingCourt
   public class LogsUploader
   {
 
+    private static string _currentMatchId;
     private static MelonPreferences_Category trainingCourtPrefs;
     private static MelonPreferences_Entry<bool> autoUploads;
     private static MelonPreferences_Entry<string> email;
@@ -182,8 +183,14 @@ namespace PTCGLDeckTracker.TrainingCourt
       return trainingCourtJwt;
     }
 
-    public IEnumerator DoBattleLogUpload(BattleLog battleLog, string deckName)
+    public IEnumerator DoBattleLogUpload(BattleLog battleLog, string deckName, string currentMatchId)
     {
+      if (currentMatchId == _currentMatchId)
+      {
+        Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: skipping action, current match ID already uploaded (" + currentMatchId + " versus " + _currentMatchId + ")");
+        yield break;
+      }
+      _currentMatchId = currentMatchId;
       var battleLogMenuExporter = new BattleLogExporter();
       Melon<IronTracks>.Logger.Msg("DoBattleLogUpload():: calling ExportBattleLog...");
       battleLogMenuExporter.ExportBattleLog(battleLog);
