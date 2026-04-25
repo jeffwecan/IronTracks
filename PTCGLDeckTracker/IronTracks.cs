@@ -431,12 +431,15 @@ namespace PTCGLDeckTracker
             _spawnedPrizeCards.Clear();
         }
 
+
+        // [HarmonyLib.HarmonyPatch(typeof(MatchManager), "StartGame")] # TODO maybe?
         [HarmonyLib.HarmonyPatch(typeof(MatchManager), "SendMatchStartTelemetry")]
         class SendMatchStartTelemetryPatch
         {
             static void Prefix(MatchManager __instance, BattleLog ____battleLog, NetworkMatchController.MatchDetails game)
             {
-
+                Melon<IronTracks>.Logger.Msg("SendMatchStartTelemetryPatch():: " + __instance.name);
+                Melon<IronTracks>.Logger.Msg("SendMatchStartTelemetryPatch():: " + game.matchID);
                 var assumedLocalPlayer = game.players[0];
                 var playerName = assumedLocalPlayer.playerName;
 
@@ -506,8 +509,10 @@ namespace PTCGLDeckTracker
             static void Prefix(MatchManager __instance, BattleLog ____battleLog)
             {
                 Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + __instance.name);
+                Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: " + NetworkMatchController.currentMatchID);
                 Melon<IronTracks>.Logger.Msg("EndGameHandlerPatch():: ____battleLog count:" + ____battleLog.ToList().Count);
-                StaticCoroutine.StartCoroutine(logsUploader.DoBattleLogUpload(____battleLog, player.deck.GetDeckName()));
+                StaticCoroutine.StartCoroutine(logsUploader.DoBattleLogUpload(____battleLog, player.deck.GetDeckName(), NetworkMatchController.currentMatchID));
             }
         }
 
